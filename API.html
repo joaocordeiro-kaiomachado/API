@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IA do 3DS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    /* Estilos personalizados */
+    .glass-effect {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(229, 231, 235, 0.5);
+    }
+
+    .chat-container {
+      height: calc(100vh - 180px);
+    }
+
+    .typing-dots span {
+      animation: blink 1.4s infinite both;
+    }
+
+    .typing-dots span:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .typing-dots span:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes blink {
+      0% {
+        opacity: 0.2;
+      }
+
+      20% {
+        opacity: 1;
+      }
+
+      100% {
+        opacity: 0.2;
+      }
+    }
+  </style>
+</head>
+
+<body class="bg-slate-50 text-slate-900 font-sans">
+
+  <!-- Contêiner principal -->
+  <div class="max-w-4xl mx-auto px-4 py-6 h-screen flex flex-col">
+    
+    <!-- Cabeçalho -->
+    <header class="flex items-center justify-between mb-6 px-4 py-3 glass-effect rounded-2xl shadow-sm">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2-2v10a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold text-slate-800">IA do 3DS</h1>
+          <p class="text-xs text-indigo-600 font-medium">Conectado via Groq Cloud</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- Área de chat -->
+    <div id="chat-messages" class="flex-1 overflow-y-auto space-y-4 mb-6 pr-2 chat-container scroll-smooth">
+      <div class="flex justify-start">
+        <div class="max-w-[85%] bg-white p-4 rounded-2xl rounded-tl-none shadow-sm border border-slate-100">
+          <p class="text-slate-700">Olá! Eu sou a <b>IA do 3DS</b>. Como posso ajudar você agora?</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Caixa de erro -->
+    <div id="error-box" class="hidden mb-4 p-3 bg-red-100 border border-red-200 text-red-700 text-sm rounded-lg text-center"></div>
+
+    <!-- Área de input -->
+    <div class="glass-effect p-4 rounded-2xl shadow-md">
+      <form id="chat-form" class="flex gap-2">
+        <input type="text" id="user-input" placeholder="Digite sua pergunta aqui..." class="flex-1 bg-slate-100 border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-slate-700" autocomplete="off">
+        <button type="submit" id="send-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-xl transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+          </svg>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- JavaScript -->
+  <script>
+    // Chave da API (Groq Cloud)
+    const apiKey = "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";
+
+    // Elementos do DOM
+    const chatMessages = document.getElementById('chat-messages');
+    const chatForm = document.getElementById('chat-form');
+    const userInput = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+    const errorBox = document.getElementById('error-box');
+
+    // Prompt do sistema
+    const systemPrompt = "Você é a IA do 3DS. Responda de forma curta, educada e apenas em Português. Não mencione ser de outra empresa.";
+
+    // Função para adicionar mensagem
+    function addMessage(text, isUser = false) {
+      const div = document.createElement('div');
+      div.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
+      const innerDiv = document.createElement('div');
+      innerDiv.className = `max-w-[85%] p-4 rounded-2xl shadow-sm ${isUser ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-white text-slate-700 rounded-tl-none border border-slate-100'}`;
+      innerDiv.innerHTML = `<p class="whitespace-pre-wrap">${text}</p>`;
+      div.appendChild(innerDiv);
+      chatMessages.appendChild(div);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Função para mostrar indicador de carregamento
+    function showLoading() {
+      const div = document.createElement('div');
+      div.id = 'loading-indicator';
+      div.className = 'flex justify-start';
+      div.innerHTML = `<div class="bg-white p-4 rounded-2xl rounded-tl-none shadow-sm border border-slate-100 text-slate-400"><div class="typing-dots flex gap-1"><span>●</span><span>●</span><span>●</span></div></div>`;
+      chatMessages.appendChild(div);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Função para remover indicador de carregamento
+    function removeLoading() {
+      const loader = document.getElementById('loading-indicator');
+      if (loader) loader.remove();
+    }
+
+    // Função para chamar a API da Groq
+    async function callAI(userText) {
+      const url = "https://api.groq.com/openai/v1/chat/completions";
+
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: "llama-3.3-70b-versatile",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userText }
+            ],
+            temperature: 0.7
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error?.message || 'Erro na conexão com a Groq');
+        }
+
+        return data.choices[0].message.content || "Sem resposta.";
+      } catch (error) {
+        console.error("Erro completo:", error);
+        throw error;
+      }
+    }
+
+    // Evento de envio do formulário
+    chatForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const text = userInput.value.trim();
+      if (!text) return;
+
+      // Esconde a caixa de erro e desativa o input
+      errorBox.classList.add('hidden');
+      userInput.value = '';
+      userInput.disabled = true;
+      sendBtn.disabled = true;
+
+      addMessage(text, true); // Adiciona a mensagem do usuário
+      showLoading(); // Exibe o carregamento
+
+      try {
+        const aiResponse = await callAI(text); // Chama a API
+        removeLoading(); // Remove o carregamento
+        addMessage(aiResponse, false); // Adiciona a resposta da IA
+      } catch 
